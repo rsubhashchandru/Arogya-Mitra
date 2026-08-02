@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String   @default("simple_login")
+  phone     String?
+  age       Int?
+  gender    String?
+  language  String   @default("English")
+  role      String   @default("patient")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  doctor            Doctor?
+  appointments      Appointment[]
+  medicines         Medicine[]
+  prescriptions     Prescription[]   @relation("PatientPrescriptions")
+  ownedFamilies     FamilyGroup[]    @relation("OwnedFamilies")
+  familyMemberships FamilyMember[]   @relation("FamilyMemberships")
+  sentMessages      ChatMessage[]    @relation("SentMessages")
+  receivedMessages  ChatMessage[]    @relation("ReceivedMessages")
+
+  @@index([email])
+}
+
+model ChatMessage {
+  id         Int      @id @default(autoincrement())
+  senderId   Int
+  receiverId Int
+  message    String   @db.Text
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  sender   User @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+model Doctor {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @unique
+  specialization String
+  qualification  String?
+  experience     Int
+  licenseNumber  String?  @unique
+  clinicName     String?
+  clinicAddress  String?
+  city           String?
+  consultationFee Int?
+  rating         Float    @default(0)
+  totalReviews   Int      @default(0)
+  isVerified     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments  Appointment[]
+  prescriptions Prescription[]
+
+  @@index([specialization])
+  @@index([city])
+}
+
+model Appointment {
+  id        Int      @id @default(autoincrement())
+  patientId Int
+  doctorId  Int
+  date      DateTime
+  time      String
+  reason    String
+  status    String   @default("scheduled")
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient User   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor  Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorId, date, time])
+  @@index([patientId])
+  @@index([doctorId])
+}
+
+model Medicine {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  name      String
+  dosage    String
+  time      String
+  frequency String   @default("daily")
+  active    Boolean  @default(true)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model FamilyGroup {
+  id        Int            @id @default(autoincrement())
+  name      String
+  ownerId   Int
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  owner   User           @relation("OwnedFamilies", fields: [ownerId], references: [id], onDelete: Cascade)
+  members FamilyMember[]
+
+  @@index([ownerId])
+}
+
+model FamilyMember {
+  id        Int         @id @default(autoincrement())
+  groupId   Int
+  userId    Int
+  relation  String
+  createdAt DateTime    @default(now())
+
+  group FamilyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User        @relation("FamilyMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+}
+
+model Prescription {
+  id         Int      @id @default(autoincrement())
+  patientId  Int
+  doctorId   Int
+  content    String   @db.Text
+  filePath   String?
+  aiSummary  String?  @db.Text
+  diagnosis  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  patient User   @relation("PatientPrescriptions", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor  Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([doctorId])
+}
